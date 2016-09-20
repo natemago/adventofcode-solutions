@@ -27,10 +27,11 @@ def replace(s, rep, frst, ind):
 def check_increasing(s):
   if len(s) < 3:
     return False
-  for i in range(0, len(s) - 3):
+  for i in range(0, len(s) - 2):
     c1 = ord(s[i])
     c2 = ord(s[i+1])
     c3 = ord(s[i+2])
+    #print(c1,c2,c3)
     if ((c3 - c2) == 1) and ((c2 - c1) == 1):
       return True
   return False
@@ -65,22 +66,22 @@ def inc(passwd):
 def is_valid(passwd):
   if lowest('iol', passwd) is not None:
     return False
-  if not re.match(r'(.)\1', passwd):
+  if not re.search(r'(.)\1.+(.)\2', passwd):
     return False
   return check_increasing(passwd)
   
 
 passwd = 'hepxcrrq'
 
-
-print(inc('pajotoiaater'))
 cnt = 0
+first = False
 while True:
   passwd = inc(passwd)
   if is_valid(passwd):
-    break
+    print(passwd)
+    if first:
+      break
+    first = True
   cnt += 1
   if cnt%10000 == 0:
     print('   nope until -> %s' % passwd)
-
-print(passwd)
