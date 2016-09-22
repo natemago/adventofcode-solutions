@@ -1,12 +1,16 @@
 #!/usr/bin/python3
 
-def divisors(n):
-  divs = [1]
-  for i in range(2,n):
-    if n%i == 0:
-      divs.append(i)
-  return divs + [n]
+import math
 
+def divisors(n):
+  divs = set()
+  for i in range(2,math.floor(math.sqrt(n))):
+    if n%i == 0:
+      divs.add(i)
+      divs.add(n/i)
+  divs.add(1)
+  divs.add(n)
+  return divs
 
 n = 1
 
