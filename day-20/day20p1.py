@@ -15,7 +15,7 @@ def divisors(n):
 n = 1
 
 while True:
-  if sum(divisors(n))*10 == 33100000:
+  if sum(divisors(n))*10 >= 33100000:
     print(n)
     break
   if n%1000 == 0:
