@@ -22,15 +22,16 @@ with open('input') as f:
 print(replacements)
 print(molecule)
 
-
+#replacements = {'e':['O','H'],'H':['HO','OH'],'O':['HH']}
 
 def invreplace(mol, step):
-  print('%d (%d) \b\b\b\b\b\b\b\b\b\b\b\b\b'%(len(mol), step), end='')
+  print('%d (%d)\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b'%(len(mol), step),end='')
+  #print(mol)
   if mol == 'e':
     print(step)
+    raise Exception(step)
   for key, repls in replacements.items():
-    repls.sort(key=lambda x: len(x))
-    repls.reverse()
+    molecules = set()
     for replacement in repls:
       r_len = len(replacement)
       start_idx = 0
@@ -39,14 +40,16 @@ def invreplace(mol, step):
         if idx < 0:
           break
         new = mol[0:idx] + key + mol[idx + r_len:]
-        #if len(new) < 30:
-        #  print(new , '%s with %s'%( replacement, key)) 
-        invreplace(new, step + 1)
+        molecules.add(new)
         start_idx = idx+1
+    molecules = sorted(molecules)
+    for m in molecules:
+      invreplace(m, step + 1)
 
-invreplace(molecule, 1)
+invreplace(molecule, 0)
 
-
+# this runs on pure christmas luck. The algorithm breaks on the first path found
+# and it turns out to be the right answer.
 
 
 
