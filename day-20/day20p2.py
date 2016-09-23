@@ -13,9 +13,9 @@ def divisors(n):
   return divs
 
 n = 1
-n = 3376000
+#n = 3376000
 while True:
-  if sum(filter(lambda x: n/x <= 50, divisors(n)))*11 == 33100000:
+  if sum(filter(lambda x: n/x <= 50, divisors(n)))*11 >= 33100000:
     print(n)
     break
   if n%1000 == 0:
