@@ -94,7 +94,7 @@ for i in range(1, len(N_factors)):
 
 
 
-print('All representations:\n ','\n  '.join(map(lambda c: str(c), all_combinations)))
+print('All divisors representations:\n ','\n  '.join(map(lambda c: str(c), all_combinations)))
 print('In total: ',len(all_combinations))
 
 
