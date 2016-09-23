@@ -81,7 +81,7 @@ PRIMES = load_primes('primes')
 # First let's factor the number
 N = 33100000/10 # we divide by 10 because each elf carries 10 presents
 
-N = 120
+#N = 120
 
 N_factors = factor(N, PRIMES)
 print(N, 'prime factors ->',N_factors)
