@@ -155,16 +155,15 @@ while not q.empty():
   #print(move,'->', spell, player, boss)
   if winner:
     # do check here
-    print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
-    if backtrack == ['Recharge','Shield','Drain','Poison','MagicMissile']:
-      print(winner, 'wins [',cost,'] when ',backtrack )
-      print(player, boss)
-      if winner == 'player':
-        print('*******')
-        raise Exception('Cost %d' % cost)
-        if min_cost is None or cost > min_cost:
-          min_cost = cost
-      raise Exception('oops') 
+    #print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
+    print(winner, 'wins [',cost,'] when ',backtrack )
+    print(player, boss)
+    if winner == 'player':
+      #print('*******')
+      raise Exception('Cost %d' % cost)
+      if min_cost is None or cost > min_cost:
+        min_cost = cost
+      
       continue
   
   for spell in SPELLS:
