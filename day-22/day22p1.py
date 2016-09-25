@@ -144,10 +144,10 @@ boss = (71, 10)
 min_cost = None
 
 for spell in SPELLS:
-  q.put((spell, 1, [], player, boss, 0,[spell[0]]))
+  q.put((spell, 1, [], player, boss, 0))
 
 while not q.empty():
-  spell, move, active_effects, player, boss, cost, backtrack = q.get()
+  spell, move, active_effects, player, boss, cost= q.get()
   
   cost += spell[1]
   
@@ -155,20 +155,22 @@ while not q.empty():
   #print(move,'->', spell, player, boss)
   if winner:
     # do check here
-    #print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
-    print(winner, 'wins [',cost,'] when ',backtrack )
-    print(player, boss)
+    print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
+    #print(winner, 'wins [',cost,'] when ',backtrack )
+    #print(player, boss)
     if winner == 'player':
       #print('*******')
-      raise Exception('Cost %d' % cost)
-      if min_cost is None or cost > min_cost:
+      print('player at cost: ', cost, ' (',min_cost,')')
+     # raise Exception('Cost %d' % cost)
+      if min_cost is None or cost < min_cost:
         min_cost = cost
       
       continue
-  
+  if move+1 > 11:
+    continue
   for spell in SPELLS:
     if can_cast_spell(spell, active_effects, player):
-      q.put((spell, move+1, active_effects, player, boss, cost,backtrack+[spell[0]]))
+      q.put((spell, move+1, active_effects, player, boss, cost))
 
 
 print('Min cost:', min_cost)
