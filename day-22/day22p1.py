@@ -19,7 +19,8 @@ _SPELLS = {
 
 DEBUG = False
 BREAK_AT_FIRST = True
-MAX_MOVE = 11
+MAX_MOVE = 12
+BACKTRACK = False
 
 def log(*args):
   if DEBUG:
@@ -79,6 +80,7 @@ EFFECTS_HNDS = {
 }
 
 def play_move(spell, active_effects, player, boss):
+  winner = None
   name, cost, is_effect, lasts_for = spell
   effects = []
   log(' -- Player Turn --')
@@ -105,6 +107,14 @@ def play_move(spell, active_effects, player, boss):
   hp,dam,arm,mana = player
   player = (hp,dam,arm,mana-cost)
   
+  if (mana - cost) < 0:
+    winner = 'boss'
+  if not winner and boss[0] <= 0:
+    winner = 'player'
+  
+  if winner:
+    log('Winner:', winner)
+    return winner, player, boss, effects
   
   active_effects = effects
   effects = []
@@ -122,7 +132,19 @@ def play_move(spell, active_effects, player, boss):
       player, boss = EFFECTS_HNDS[effect](player, boss, 'turn')
       effects.append((effect, turns))
    
-  winner, player, boss =  player_vs_boss(player, boss, cost)
+  #winner, player, boss =  player_vs_boss(player, boss, cost)
+  
+  hp,dam,arm,mana = player
+  player = (hp - max(boss[1] - player[2], 1), dam, arm, mana)
+  
+  if not winner and boss[0] <=0:
+    winner = 'player'
+  if not winner and player[0] <=0:
+    winner = 'boss'
+  
+  
+  if winner:
+    log('Winner:', winner)
   
   log('-------------------------------------')
   return winner, player, boss, effects
@@ -177,10 +199,10 @@ q = queue.Queue()
 player = (50, 0, 0, 500)
 boss = (71, 10)
 #player = (10, 0, 0, 250)
-#boss= (13,8)
+#boss= (14,8)
 
 # -------------------------
-if DEBUG:
+if DEBUG and False:
   player = (10, 0, 0, 250)
   boss= (14, 8)
   effects = []
@@ -197,11 +219,13 @@ if DEBUG:
 min_cost = None
 
 for spell in SPELLS:
-  q.put((spell, 1, [], player, boss, 0))
-
-while not q.empty():
-  spell, move, active_effects, player, boss, cost= q.get()
+  backtrack = spell[0] if BACKTRACK else ''
+  q.put((spell, 1, [], player, boss, 0, backtrack))
   
+while not q.empty():
+  spell, move, active_effects, player, boss, cost, backtrack= q.get()
+  if BACKTRACK:
+    backtrack += '->' + spell[0]
   cost += spell[1]
   
   winner, player, boss, active_effects = play_move(spell, active_effects, player, boss)
@@ -211,18 +235,19 @@ while not q.empty():
     print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
     if winner == 'player':
       #print('*******')
-      print('player at cost: ', cost, ' (',min_cost,')')
+      print('player at cost: ', cost, ' (',min_cost,') over ', backtrack)
       if BREAK_AT_FIRST:
         raise Exception('Cost %d' % cost)
       if min_cost is None or cost < min_cost:
         min_cost = cost
       
-      continue
+    continue
+  
   if move+1 > MAX_MOVE:
     continue
   for spell in SPELLS:
     if can_cast_spell(spell, active_effects, player):
-      q.put((spell, move+1, active_effects, player, boss, cost))
+      q.put((spell, move+1, active_effects, player, boss, cost, backtrack))
 
 
 print('Min cost:', min_cost)
