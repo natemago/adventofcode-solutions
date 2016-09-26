@@ -17,10 +17,7 @@ _SPELLS = {
   'Recharge': SPELLS[4],
 }
 
-DEBUG = True
-BREAK_AT_FIRST = True
-MAX_MOVE = 13
-BACKTRACK = False
+DEBUG = False
 
 def log(*args):
   if DEBUG:
@@ -89,7 +86,7 @@ def play_move(spell, active_effects, player, boss):
   log('Player casts %s.'%name)
   if is_effect:
     player, boss = EFFECTS_HNDS[name](player, boss, 'start')
-    effects.append((name, lasts_for))
+    effects.append((name, lasts_for - 1))
   else:
     player,boss = SPELLS_HNDS[name](player, boss)
   
@@ -97,14 +94,13 @@ def play_move(spell, active_effects, player, boss):
   for effect, turns in active_effects:
     if effect == name:
       continue
-    turns -= 1
-    if turns < 0:
-      continue
+    
     if turns == 0:
       player, boss = EFFECTS_HNDS[effect](player, boss, 'end')
     else:
       player, boss = EFFECTS_HNDS[effect](player, boss, 'turn')
-      effects.append((effect, turns))
+      effects.append((effect, turns - 1))
+      log('\t\ttimer: ', turns - 1)
   
   hp,dam,arm,mana = player
   player = (hp,dam,arm,mana-cost)
@@ -125,28 +121,28 @@ def play_move(spell, active_effects, player, boss):
   log(' -- Boss Turn --')
   log(' - Player has %d hit points, %d armor, %d mana' % (player[0],player[2],player[3]))
   log(' - Boss has %d hit points, %d damage' % boss)
+  
   for effect, turns in active_effects:
-    turns -= 1
-    if turns < 0:
-      continue
     if turns == 0:
       player, boss = EFFECTS_HNDS[effect](player, boss, 'end')
     else:
       player, boss = EFFECTS_HNDS[effect](player, boss, 'turn')
-      effects.append((effect, turns))
+      effects.append((effect, turns - 1))
+      log('\t\ttimer: ', turns - 1)
    
   #winner, player, boss =  player_vs_boss(player, boss, cost)
   
-  hp,dam,arm,mana = player
-  player = (hp - max(boss[1] - player[2], 1), dam, arm, mana)
+  
   
   if not winner and boss[0] <=0:
     winner = 'player'
   if not winner and player[0] <=0:
     winner = 'boss'
   
-  
-  if winner:
+  if not winner:
+    hp,dam,arm,mana = player
+    player = (hp - max(boss[1] - player[2], 1), dam, arm, mana)
+  else:
     log('Winner:', winner)
   
   log('-------------------------------------')
@@ -168,70 +164,113 @@ def can_cast_spell(spell,active_effects,player):
     return False
   is_in, turns = spell_in_active_effects(spell, active_effects)
   if is_in:
-    if turns <= 1:
-      return True
+    if turns == 0:
+      if spell[0] in ['Recharge','Poison']:
+        return True
     return False
   else:
     return True
 
-q = queue.Queue()
 
-# hit points, damage, armor, mana
-player = (50, 0, 0, 500)
-boss = (71, 10)
-#player = (10, 0, 0, 250)
-#boss= (14,8)
 
-# -------------------------
-if DEBUG:
-  player = (10, 0, 0, 250)
-  boss= (14, 8)
+def get_cost(player, boss, debug=False, BACKTRACK=False, MAX_MOVE=None, BREAK_AT_FIRST=False):
+  global DEBUG
+  
+  DEBUG = debug
+  
+  q = queue.Queue()
+  min_cost = None
+  bt = None
+  
+  
+  for spell in SPELLS:
+    backtrack = spell[0] if BACKTRACK else ''
+    q.put((spell, 1, [], player, boss, 0, backtrack))
+    
+  while not q.empty():
+    spell, move, active_effects, player, boss, cost, backtrack= q.get()
+    cost += spell[1]
+    
+    winner, player, boss, active_effects = play_move(spell, active_effects, player, boss)
+    
+    if winner:
+      # do check here
+      print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
+      if winner == 'player':
+        print(move, ') player at cost: ', cost, ' (',min_cost,') over ', backtrack)
+        if min_cost is None or cost < min_cost:
+          min_cost = cost
+          bt = backtrack
+        if BREAK_AT_FIRST and min_cost:
+          return min_cost, backtrack
+      continue
+    
+    if MAX_MOVE and move+1 > MAX_MOVE:
+      continue
+    for spell in SPELLS:
+      if can_cast_spell(spell, active_effects, player):
+        if min_cost is not None and (cost+spell[1]) >= min_cost:
+          continue
+        bt = (backtrack + '->' + spell[0]) if BACKTRACK else ''
+        q.put((spell, move+1, active_effects, player, boss, cost, bt))
+    
+  return min_cost, bt
+
+def simulate(moves, player, boss, debug=True):
+  global DEBUG
+  DEBUG = debug
   effects = []
-  for spell in [_SPELLS[s] for s in ['Recharge','Shield','Drain','Poison','MagicMissile'] ]:
-  #for spell in [_SPELLS[s] for s in ['Poison','MagicMissile'] ]:
+  for spell in [_SPELLS[s] for s in moves]:
     winner, player, boss, effects = play_move(spell, effects, player, boss)
     
+  return winner, player, boss
+
+def ok(exp, msg=''):
+  if not exp:
+    raise Exception(msg or 'Assertion failed')
+
+# == Test Cases ==
+winner, player, boss = simulate(moves=['Poison', 'MagicMissile'], player=(10,0,0,250),boss=(13,8), debug=True)
+ok('player' == winner, 'Winner is not player')
+ok(player[0] == 2, 'Player should have 2 hit points')
+ok(player[2] == 0, 'Player should have 0 armor')
+ok(player[3] == 24, 'Player should have 24 mana')
+
+ok(boss[0] == 0, 'Boss should have 0 points')
+print('=============================')
+print('Test case 1: OK')
+print()
+
+winner, player, boss = simulate(moves=['Recharge','Shield','Drain','Poison','MagicMissile'], player=(10,0,0,250),boss=(14,8), debug=True)
+ok('player' == winner, 'Winner is not player')
+ok(player[0] == 1, 'Player should have 1 hit point1')
+ok(player[2] == 0, 'Player should have 0 armor')
+ok(player[3] == 114, 'Player should have 114 mana')
+
+ok(boss[0] == -1, 'Boss should have -1 points')
+print('=============================')
+print('Test case 2: OK')
+print()
+
+cost, backtrack = get_cost((10, 0, 0, 250),(13, 8), debug=False, BACKTRACK=True, BREAK_AT_FIRST=True)
+ok(cost == 226, 'Cost should be 226, but got %s instead'%str(cost))
+ok(backtrack == 'Poison->MagicMissile', 'Unexpected moves: %s'%str(backtrack))
+print('=============================')
+print('Test case 3: OK')
+print()
+
+cost, backtrack = get_cost((10, 0, 0, 250),(14, 8), debug=False, BACKTRACK=True, BREAK_AT_FIRST=True)
+ok(cost == 641, 'Cost should be 641, but got %s instead'%str(cost))
+ok(backtrack == 'Recharge->Shield->Drain->Poison->MagicMissile', 'Unexpected moves: %s'%str(backtrack))
+print('=============================')
+print('Test case 4: OK')
+print()
+
+# hit points, damage, armor, mana
+#player = (50, 0, 0, 500)
+#boss = (71, 10)
+
+print('>> Starting search')
+cost, backtrack = get_cost((50, 0, 0, 500),(51, 9), debug=False, BACKTRACK=True, BREAK_AT_FIRST=True)
 
 
-
-  import sys
-  sys.exit()
-# -------------------------
-
-min_cost = None
-
-for spell in SPELLS:
-  backtrack = spell[0] if BACKTRACK else ''
-  q.put((spell, 1, [], player, boss, 0, backtrack))
-  
-while not q.empty():
-  spell, move, active_effects, player, boss, cost, backtrack= q.get()
-  if BACKTRACK:
-    backtrack += '->' + spell[0]
-  cost += spell[1]
-  
-  winner, player, boss, active_effects = play_move(spell, active_effects, player, boss)
-  #print(move,'->', spell, player, boss)
-  if winner:
-    # do check here
-    print('%d %s\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b' %(move, winner), end='')
-    if winner == 'player':
-      #print('*******')
-      print(move, ') player at cost: ', cost, ' (',min_cost,') over ', backtrack)
-      if BREAK_AT_FIRST:
-        raise Exception('Cost %d' % cost)
-      if min_cost is None or cost < min_cost:
-        min_cost = cost
-      
-    continue
-  
-  #if move+1 > MAX_MOVE:
-  #  continue
-  for spell in SPELLS:
-    if can_cast_spell(spell, active_effects, player):
-      if min_cost is not None and (cost+spell[1]) >= min_cost:
-        continue
-      q.put((spell, move+1, active_effects, player, boss, cost, backtrack))
-
-
-print('Min cost:', min_cost)
