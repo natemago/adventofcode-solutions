@@ -84,29 +84,32 @@ def play_move(spell, active_effects, player, boss):
   log(' - Player has %d hit points, %d armor, %d mana' % (player[0],player[2],player[3]))
   log(' - Boss has %d hit points, %d damage' % boss)
   log('Player casts %s.'%name)
+  
+  cast_only = False
+  
+  for effect, turns in active_effects:
+    event = 'end' if turns == 1 else 'turn'
+    player, boss = EFFECTS_HNDS[effect](player, boss, event)
+    turns -= 1
+    log('   > Timer is now %d'%turns)
+    if turns > 0:
+      # add it for next cycle
+      effects.append((effect, turns))
+    if name == effect:
+      cast_only = True
+      
   if is_effect:
     player, boss = EFFECTS_HNDS[name](player, boss, 'start')
-    effects.append((name, lasts_for - 1))
+    effects.append((name, lasts_for))
   else:
     player,boss = SPELLS_HNDS[name](player, boss)
-  
- 
-  for effect, turns in active_effects:
-    if effect == name:
-      continue
-    
-    if turns == 0:
-      player, boss = EFFECTS_HNDS[effect](player, boss, 'end')
-    else:
-      player, boss = EFFECTS_HNDS[effect](player, boss, 'turn')
-      effects.append((effect, turns - 1))
-      log('\t\ttimer: ', turns - 1)
   
   hp,dam,arm,mana = player
   player = (hp,dam,arm,mana-cost)
   
   if (mana - cost) <= 0:
     winner = 'boss'
+    print('NOOO')
   if not winner and boss[0] <= 0:
     winner = 'player'
   
@@ -122,14 +125,22 @@ def play_move(spell, active_effects, player, boss):
   log(' - Player has %d hit points, %d armor, %d mana' % (player[0],player[2],player[3]))
   log(' - Boss has %d hit points, %d damage' % boss)
   
+  #for effect, turns in active_effects:
+  #  if turns == 0:
+  #    player, boss = EFFECTS_HNDS[effect](player, boss, 'end')
+  #  else:
+  #    player, boss = EFFECTS_HNDS[effect](player, boss, 'turn')
+  #    effects.append((effect, turns - 1))
+  #    log('\t\ttimer: ', turns - 1)
+  
   for effect, turns in active_effects:
-    if turns == 0:
-      player, boss = EFFECTS_HNDS[effect](player, boss, 'end')
-    else:
-      player, boss = EFFECTS_HNDS[effect](player, boss, 'turn')
-      effects.append((effect, turns - 1))
-      log('\t\ttimer: ', turns - 1)
-   
+    event = 'end' if turns == 1 else 'turn'
+    player, boss = EFFECTS_HNDS[effect](player, boss, event)
+    turns -= 1
+    log('   > Timer is now %d'%turns)
+    if turns > 0:
+      # add it for next cycle
+      effects.append((effect, turns))
   #winner, player, boss =  player_vs_boss(player, boss, cost)
   
   
@@ -152,21 +163,22 @@ def play_move(spell, active_effects, player, boss):
 
 def spell_in_active_effects(spell, active_effects):
   if len(active_effects):
-    for ac in active_effects:
-      if ac[0] == spell:
-        return (True, ac[1])
+    for effect, turns in active_effects:
+      if effect == spell[0]:
+        return (True, turns)
     return (False, None)
   else:
     return (False, None)
 
 def can_cast_spell(spell,active_effects,player):
-  if player[3]- spell[1] < 0:
+  if player[3]- spell[1] <= 0:
     return False
   is_in, turns = spell_in_active_effects(spell, active_effects)
   if is_in:
-    if turns == 0:
-      if spell[0] in ['Recharge','Poison']:
-        return True
+    if turns <= 2:
+      #print('Effect (%s) can be casted because on end turn' % str(spell))
+      #if spell[0] in ['Recharge','Poison']:    
+      return True
     return False
   else:
     return True
@@ -180,7 +192,7 @@ def get_cost(player, boss, debug=False, BACKTRACK=False, MAX_MOVE=None, BREAK_AT
   
   q = queue.Queue()
   min_cost = None
-  bt = None
+  final_backtrack = None
   
   
   for spell in SPELLS:
@@ -200,7 +212,7 @@ def get_cost(player, boss, debug=False, BACKTRACK=False, MAX_MOVE=None, BREAK_AT
         print(move, ') player at cost: ', cost, ' (',min_cost,') over ', backtrack)
         if min_cost is None or cost < min_cost:
           min_cost = cost
-          bt = backtrack
+          final_backtrack = backtrack
         if BREAK_AT_FIRST and min_cost:
           return min_cost, backtrack
       continue
@@ -214,7 +226,7 @@ def get_cost(player, boss, debug=False, BACKTRACK=False, MAX_MOVE=None, BREAK_AT
         bt = (backtrack + '->' + spell[0]) if BACKTRACK else ''
         q.put((spell, move+1, active_effects, player, boss, cost, bt))
     
-  return min_cost, bt
+  return min_cost, final_backtrack
 
 def simulate(moves, player, boss, debug=True):
   global DEBUG
@@ -230,6 +242,23 @@ def ok(exp, msg=''):
     raise Exception(msg or 'Assertion failed')
 
 # == Test Cases ==
+
+#Test is_in
+print("=============================")
+print('Test 1 spell_in_active_effects')
+is_in, turns = spell_in_active_effects(_SPELLS['Poison'], [('Shield',4),('Poison',3)])
+ok(is_in == True, 'Should be in')
+ok(turns == 3, 'Should have timer 3')
+print('spell_in_active_effects - test 1 OK')
+
+print("=============================")
+print('Test 2 spell_in_active_effects')
+is_in, turns = spell_in_active_effects(_SPELLS['Poison'], [('Shield',4),('Drain',3)])
+ok(is_in == False, 'Should NOT be in')
+ok(turns is None, 'Should NOT have timer')
+print('spell_in_active_effects - test 2 OK')
+
+print('==============================')
 winner, player, boss = simulate(moves=['Poison', 'MagicMissile'], player=(10,0,0,250),boss=(13,8), debug=True)
 ok('player' == winner, 'Winner is not player')
 ok(player[0] == 2, 'Player should have 2 hit points')
@@ -270,7 +299,10 @@ print()
 #player = (50, 0, 0, 500)
 #boss = (71, 10)
 
-print('>> Starting search')
-cost, backtrack = get_cost((50, 0, 0, 500),(51, 9), debug=False, BACKTRACK=True, BREAK_AT_FIRST=True)
 
+
+print('>> Starting search')
+cost, backtrack = get_cost((50, 0, 0, 500),(71, 10), debug=False, BACKTRACK=True, BREAK_AT_FIRST=False)
+#cost, backtrack = get_cost((50, 0, 0, 500),(58, 9), debug=False, BACKTRACK=True, BREAK_AT_FIRST=True)
+print(cost, backtrack)
 
