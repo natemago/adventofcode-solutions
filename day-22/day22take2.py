@@ -55,7 +55,8 @@ def cast_spell(spell_name, player, boss, timer, event='turn'):
       return Player(player.hp, player.mana + 101, player.armor), boss
     return player, boss
 
-def player_turn(spell, player, boss, effects):
+def player_turn(spell, player, boss, effects, hard_mode):
+  # 0. Take out one point for hard mode (if set)
   # 1. Check if can cast spell
   #    1.1 Has enough mana
   #    1.2 Not in active effects
@@ -64,6 +65,11 @@ def player_turn(spell, player, boss, effects):
   # 4. Check if boss dead
   
   name, cost, is_effect, turns = spell
+  
+  if hard_mode:
+    player = Player(player.hp - 1, player.mana, player.armor)
+    if player.hp <= 0:
+      return 'boss', player, boss, effects
   
   # 1
   if player.mana < cost:
@@ -117,15 +123,15 @@ def boss_turn(player, boss, effects):
     winner = 'boss'
   return winner, player, boss, active_effects
 
-def game_cycle(spell, player, boss, effects):
-  winner, player, boss, effects = player_turn(spell, player, boss, effects)
+def game_cycle(spell, player, boss, effects, hard_mode):
+  winner, player, boss, effects = player_turn(spell, player, boss, effects, hard_mode)
   if winner:
     return winner, player, boss, effects
   return boss_turn(player, boss, effects)
 
 
 
-def explore_game_space_bfs(player, boss, spells):
+def explore_game_space_bfs(player, boss, spells, hard_mode=False):
   from queue import Queue
   
   min_cost = None
@@ -139,7 +145,7 @@ def explore_game_space_bfs(player, boss, spells):
   while not q.empty():
     spell, cost, player, boss, effects, backtrack = q.get()
     #print(spell, cost)
-    winner, player, boss, effects = game_cycle(spell, player, boss, effects)
+    winner, player, boss, effects = game_cycle(spell, player, boss, effects, hard_mode)
       
     
     if winner:
@@ -171,7 +177,16 @@ def simulate_play(spells, player, boss):
     print(spell, winner, player, boss, effects)
 
 
-cost, backtrack = explore_game_space_bfs(Player(50, 500, 0), Boss(71, 10), SPELLS)
+
+import sys
+
+hard_mode = False
+
+if 'on-hard' in sys.argv:
+  hard_mode = True
+  print('Hard Mode: ON')
+
+cost, backtrack = explore_game_space_bfs(Player(50, 500, 0), Boss(71, 10), SPELLS, hard_mode)
 if cost:
   print('Win with at least %d using the following moves: %s' % (cost, backtrack))
 else:
